@@ -1,0 +1,31 @@
+<html>
+
+<head>
+<title>Progress Clocks</title>
+<link href="https://fonts.cdnfonts.com/css/kirsty-2" rel="stylesheet">
+<link rel="stylesheet" type="text/css" href="clocks.css" />	
+</head>
+
+<body>
+
+<div class="top-buttons">
+<input class="button top-button" type="button" id="add-positive" value="Add Good Clock" />
+<input class="button top-button" type="button" id="add-negative" value="Add Bad Clock" />
+</div>
+
+<div id="clock-area" class="clock-area">
+</div>
+
+<div class="footer">
+inspired by <a href="https://rp.meromorph.com/blades/">meromorph</a>
+</div>
+
+<script type="module">
+import init from '../pkg/progress_clocks.js';
+
+await init();
+</script>
+
+</body>
+</html>
+

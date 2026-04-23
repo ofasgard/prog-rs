@@ -1,0 +1,96 @@
+body
+{
+	background-color: #333333;
+	margin: 0;
+	padding: 0;
+	min-height: 100%;
+}
+
+.top-buttons {
+	margin: auto;
+	width: 30%;
+	text-align: center;
+	margin-top: 8px;
+	margin-bottom: 48px;
+}
+
+.clock-area {
+	width: 95%;
+	margin: auto;
+}
+
+.clock-container {
+	float: left;
+	margin-bottom: 32px;
+	min-width: 250px;
+}
+
+.clock-title {
+	background: transparent;
+	border: none;
+	outline: none;
+	display: block;
+	margin: auto;
+	margin-bottom: 8px;
+	text-align: center;
+	font-family: 'Kirsty';
+	font-size: 1.6em;
+}
+
+.clock-canvas {
+	display: block;
+	margin: auto;
+	margin-bottom: 16px;
+}
+
+.clock-buttons {
+	margin: auto;
+	width: 100%;
+	text-align: center;
+}
+
+.button {
+	background: transparent;
+	border: none;
+	text-align: center;
+	font-family: 'Kirsty';
+	color: white;
+}
+
+.button:hover {
+	background-color: #444444;
+}
+
+.top-button {
+	font-size: 2.5em;
+	margin-left: 8px;
+	margin-right: 8px;
+}
+
+.clock-button {
+	font-size: 2.5em;
+	margin-left: 16px;
+	margin-right: 16px;
+}
+
+.footer {
+	position: fixed;
+	bottom: 0;
+	right: 0;
+	font-family: 'Kirsty';
+	color: white;
+	padding: 10px;
+	background-color: #222222;
+}
+
+
+.footer a {
+	color: white;
+	font-weight: bold;
+	text-decoration: none;
+}
+
+.footer a:hover {
+	color: #F06900;
+}
+
