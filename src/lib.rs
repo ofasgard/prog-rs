@@ -33,23 +33,23 @@ fn run() -> Result<(), JsValue> {
 	
 	// Set up event handlers for "add clock" buttons.
 	let doc = document.clone();
+	let ca = clock_area.clone();
 	let positive_button_handler = Closure::<dyn FnMut(_)>::new(move |e: PointerEvent| {
 		let div = doc.create_element("div").unwrap();
 		div.set_id(Uuid::new_v4().to_string().as_str());
 		div.set_class_name("positive");
 		
-		let body = doc.body().expect("document should have a body");
-		body.append_child(&div).unwrap();
+		ca.append_child(&div).unwrap();
 	});
 	
 	let doc = document.clone();
+	let ca = clock_area.clone();
 	let negative_button_handler = Closure::<dyn FnMut(_)>::new(move |e: PointerEvent| {
 		let div = doc.create_element("div").unwrap();
 		div.set_id(Uuid::new_v4().to_string().as_str());
 		div.set_class_name("negative");
 		
-		let body = doc.body().expect("document should have a body");
-		body.append_child(&div).unwrap();
+		ca.append_child(&div).unwrap();
 	});	
 	
 	positive_button.add_event_listener_with_callback("click", positive_button_handler.as_ref().unchecked_ref())?;
