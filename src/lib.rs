@@ -3,9 +3,10 @@ pub mod clock;
 use crate::clock::ProgressClock;
 
 use wasm_bindgen::prelude::*;
-use web_sys::{ Document, HtmlInputElement, HtmlDivElement, HtmlButtonElement, HtmlCanvasElement, CanvasRenderingContext2d, PointerEvent };
+use web_sys::{ Document, HtmlInputElement, HtmlDivElement, HtmlButtonElement, HtmlCanvasElement, CanvasRenderingContext2d, PointerEvent, Path2d };
 use console_error_panic_hook;
 
+use std::f64;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::rc::Rc;
@@ -14,8 +15,20 @@ use std::cell::RefCell;
 type ProgressClockMutex = Arc<Mutex<ProgressClock>>;
 
 const CLOCK_RADIUS : u32 = 100;
+const BACKGROUND_COLOR : &str = "#333333";
+const CLOCK_COLOR : &str = "#444444";
 const POSITIVE_TICK_COLOR : &str = "#E0FFFF";
 const NEGATIVE_TICK_COLOR : &str = "#A31F34";
+
+fn generate_wedge(degrees: f64) -> Path2d {
+	let wedge = Path2d::new().unwrap();
+	let radius : f64 = CLOCK_RADIUS.into();
+	
+	wedge.arc(radius, radius, radius, 0.0, (degrees * f64::consts::PI) / 180.0).unwrap();
+	wedge.line_to(radius, radius);
+	wedge.close_path();
+	wedge
+}
 
 fn add_clock(document: &Document, clock_area: &HtmlDivElement, clock_mx: &ProgressClockMutex) {
 	let clock = clock_mx.lock().unwrap();
@@ -52,6 +65,7 @@ fn add_clock(document: &Document, clock_area: &HtmlDivElement, clock_mx: &Progre
 	// Create a canvas to draw the clock on.
 	let canvas = document.create_element("canvas").unwrap();
 	let canvas : HtmlCanvasElement = canvas.dyn_into::<HtmlCanvasElement>().map_err(|_| ()).unwrap();
+	canvas.set_class_name("clock-canvas");
 	canvas.set_width(CLOCK_RADIUS * 2);
 	canvas.set_height(CLOCK_RADIUS * 2);
 	div.append_child(&canvas).unwrap();
@@ -87,10 +101,12 @@ fn add_clock(document: &Document, clock_area: &HtmlDivElement, clock_mx: &Progre
 	// TODO Add event handlers to connect the buttons to the clock's exported functions.
 }
 
-fn draw_clock(document: &Document, clock_mx: &ProgressClockMutex) {
+fn draw_clock(document: &Document, clock_mx: &ProgressClockMutex, x: f64, y: f64) {
 	// Retrieve the div that corresponds to this clock.
 	let clock = clock_mx.lock().unwrap();
 	let id = clock.get_id();
+	let size = clock.get_size();
+	let ticks = clock.get_ticks();
 	
 	let clock_div = document.get_element_by_id(&id).unwrap();
 	let clock_div : HtmlDivElement = clock_div.dyn_into::<HtmlDivElement>().map_err(|_| ()).unwrap();
@@ -102,7 +118,42 @@ fn draw_clock(document: &Document, clock_mx: &ProgressClockMutex) {
 	let ctx = canvas.get_context("2d").unwrap().unwrap().dyn_into::<CanvasRenderingContext2d>().unwrap();
 	ctx.clear_rect(0.0, 0.0, canvas.width().into(), canvas.height().into());
 	
-	// TODO contents of original JavaScript drawClock()
+	// Move our context to the correct position.
+	ctx.translate(x, y).unwrap();
+	
+	// Dynamically create a wedge of the correct angle.
+	let degrees : f64 = 360.0 / (size as f64);
+	let wedge : Path2d = generate_wedge(degrees);
+	
+	// Prepare the context.
+	ctx.set_stroke_style_str(BACKGROUND_COLOR);
+	ctx.set_line_width(10.0);
+	
+	// Initial rotation to orient the clock correctly.
+	let radius : f64 = CLOCK_RADIUS.into();
+	ctx.translate(radius, radius).unwrap();
+	ctx.rotate((270.0 * f64::consts::PI) / 180.0).unwrap();
+	ctx.translate(-radius, -radius).unwrap();
+	
+	// Iterate through all wedges and draw them in the correct position.
+	for i in 0..size {
+		match ticks > i {
+			true => {
+				let color = match clock.is_positive() { true => POSITIVE_TICK_COLOR, false => NEGATIVE_TICK_COLOR };
+				ctx.set_fill_style_str(color);
+			}
+			false => ctx.set_fill_style_str(CLOCK_COLOR)
+		}
+		
+		ctx.fill_with_path_2d(&wedge);
+		ctx.stroke_with_path(&wedge);
+		
+		ctx.translate(radius, radius).unwrap();
+		ctx.rotate((degrees * f64::consts::PI) / 180.0).unwrap();
+		ctx.translate(-radius, -radius).unwrap();
+	}
+	
+	ctx.reset_transform().unwrap();
 }
 
 #[wasm_bindgen]
@@ -166,7 +217,7 @@ fn run() -> Result<(), JsValue> {
 		// Do some rendering here!
 		let clocks_handle = clocks_mx.lock().unwrap();
 		for clock in &*clocks_handle {
-			draw_clock(&doc, clock);
+			draw_clock(&doc, clock, 0.0, 0.0);
 		}
 		
 		w.request_animation_frame(rl.borrow().as_ref().unwrap().as_ref().unchecked_ref()).unwrap();
@@ -175,3 +226,5 @@ fn run() -> Result<(), JsValue> {
 	window.request_animation_frame(render_loop.borrow().as_ref().unwrap().as_ref().unchecked_ref()).unwrap();
 	Ok(())
 }
+
+// TODO replace every unwrap with an expect so we get console errors
