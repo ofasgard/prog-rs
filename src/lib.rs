@@ -78,8 +78,6 @@ fn add_clock(document: &Document, clock_area: &HtmlDivElement, clocks_mx: &Arc<M
 	canvas.set_height(CLOCK_RADIUS * 2);
 	div.append_child(&canvas).unwrap();
 	
-	// TODO Add event handler for processing when a user clicks on the clock.
-	
 	// Create the buttons to enlarge/reduce/remove the clock.
 	let button_div = document.create_element("div").unwrap();
 	button_div.set_class_name("clock-buttons");
@@ -133,6 +131,27 @@ fn add_clock(document: &Document, clock_area: &HtmlDivElement, clocks_mx: &Arc<M
 	});
 	
 	reduce.add_event_listener_with_callback("click", handler.as_ref().unchecked_ref()).unwrap();
+	handler.forget();
+	
+	// Event handler for processing clicks.
+	let handler_clock = Arc::clone(&clock_mx);
+	let doc = document.clone();
+	let canv = canvas.clone();
+	let handler = Closure::<dyn FnMut(_)>::new(move |e: PointerEvent| {
+		let bounding_rect = canv.get_bounding_client_rect();
+		
+		let scale_x = (canv.width() as f64) / bounding_rect.width();
+		let scale_y = (canv.height() as f64) / bounding_rect.height();
+		
+		let canvas_x = (e.client_x() as f64 - bounding_rect.left()) * scale_x;
+		let canvas_y = (e.client_y() as f64 - bounding_rect.top()) * scale_y;
+		
+		if let Some(wedge) = check_tick(&doc, &handler_clock, canvas_x, canvas_y) {
+			handler_clock.lock().unwrap().process_click(wedge);
+		}
+	});
+	
+	canvas.add_event_listener_with_callback("click", handler.as_ref().unchecked_ref()).unwrap();
 	handler.forget();
 }
 
@@ -204,6 +223,48 @@ fn draw_clock(document: &Document, clock_mx: &ProgressClockMutex, x: f64, y: f64
 	}
 	
 	ctx.reset_transform().unwrap();
+}
+
+fn check_tick(document: &Document, clock_mx: &ProgressClockMutex, click_x: f64, click_y: f64) -> Option<i32> {
+	let clock = clock_mx.lock().unwrap();
+	let id = clock.get_id();
+	let size = clock.get_size();
+
+	let clock_div = document.get_element_by_id(&id).unwrap();
+	let clock_div : HtmlDivElement = clock_div.dyn_into::<HtmlDivElement>().map_err(|_| ()).unwrap();
+
+	// Retrieve the canvas and initialise a drawing context.
+	let canvas = clock_div.children().item(1).unwrap();
+	let canvas : HtmlCanvasElement = canvas.dyn_into::<HtmlCanvasElement>().map_err(|_| ()).unwrap();
+	
+	let ctx = canvas.get_context("2d").unwrap().unwrap().dyn_into::<CanvasRenderingContext2d>().unwrap();
+	ctx.clear_rect(0.0, 0.0, canvas.width().into(), canvas.height().into());
+	
+	// Dynamically create a wedge of the correct angle.
+	let degrees : f64 = 360.0 / (size as f64);
+	let wedge : Path2d = generate_wedge(degrees);
+	
+	// Initial rotation to orient the clock correctly.
+	let radius : f64 = CLOCK_RADIUS.into();
+	ctx.translate(radius, radius).unwrap();
+	ctx.rotate((270.0 * f64::consts::PI) / 180.0).unwrap();
+	ctx.translate(-radius, -radius).unwrap();
+	
+	// Iterate through all wedges and check whether the given point is inside each of them.
+	for i in 0..size {
+		if ctx.is_point_in_path_with_path_2d_and_f64(&wedge, click_x, click_y) {
+			ctx.reset_transform().unwrap();
+			return Some(i+1);
+		}
+		
+		ctx.translate(radius, radius).unwrap();
+		ctx.rotate((degrees * f64::consts::PI) / 180.0).unwrap();
+		ctx.translate(-radius, -radius).unwrap();
+	}
+	
+	// If not in any wedge, return None.
+	ctx.reset_transform().unwrap();
+	None
 }
 
 #[wasm_bindgen]
