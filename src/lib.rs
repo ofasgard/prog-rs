@@ -9,10 +9,27 @@ use console_error_panic_hook;
 use std::sync::Arc;
 use std::sync::Mutex;
 
+const POSITIVE_TICK_COLOR : &str = "#E0FFFF";
+const NEGATIVE_TICK_COLOR : &str = "#A31F34";
+
 fn add_clock(document: &Document, clock_area: &HtmlDivElement, clock: &ProgressClock) {
 	let div = document.create_element("div").unwrap();
 	div.set_id(&clock.get_id());
 	clock_area.append_child(&div).unwrap();
+	
+	// Set the clock's title.
+	let title = document.create_element("input").unwrap();
+	let title : HtmlInputElement = title.dyn_into::<HtmlInputElement>().map_err(|_| ()).unwrap();
+	title.set_class_name("clock-title");
+	title.set_placeholder("Untitled Clock");
+	if clock.get_name() != "" { 
+		title.set_value(&clock.get_name());
+	}
+	match clock.is_positive() {
+		true => title.style().set_property("color", POSITIVE_TICK_COLOR).unwrap(),
+		false => title.style().set_property("color", NEGATIVE_TICK_COLOR).unwrap()
+	};
+	div.append_child(&title).unwrap();
 	
 	// TODO rest of this function
 }
