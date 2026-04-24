@@ -331,6 +331,3 @@ fn run() -> Result<(), JsValue> {
 	window.request_animation_frame(render_loop.borrow().as_ref().unwrap().as_ref().unchecked_ref()).unwrap();
 	Ok(())
 }
-
-// TODO replace every unwrap with an expect so we get console errors
-// TODO clocks are ephemeral, but we leak the closures when we create them, which may cause performance issues
