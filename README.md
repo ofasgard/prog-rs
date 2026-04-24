@@ -8,3 +8,21 @@ TODO:
 - Clocks are ephemeral, but we leak the closures when we create them, which may cause performance issues?
 - Implement buttons to save and load your clocks to a JSON file.
 - Implement automatic saving and loading of your clocks to browser storage.
+
+## Test Deployment
+
+You'll need to have `wasm-pack` installed to build this project:
+
+```sh
+$ wasm-pack build --target web
+```
+
+The WASM and JavaScript glue files will be compiled to the `pkg` directory. From the root of the repository:
+
+```sh
+$ python3 -m http.server
+```
+
+Then navigate to:
+
+> http://127.0.0.1:8000/html/
