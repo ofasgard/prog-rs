@@ -3,10 +3,19 @@ pub mod clock;
 use crate::clock::ProgressClock;
 
 use wasm_bindgen::prelude::*;
-use web_sys::{ HtmlInputElement, HtmlDivElement, PointerEvent };
+use web_sys::{ Document, HtmlInputElement, HtmlDivElement, PointerEvent };
 use console_error_panic_hook;
 
-use uuid::Uuid;
+use std::sync::Arc;
+use std::sync::Mutex;
+
+fn add_clock(document: &Document, clock_area: &HtmlDivElement, clock: &ProgressClock) {
+	let div = document.create_element("div").unwrap();
+	div.set_id(&clock.get_id());
+	clock_area.append_child(&div).unwrap();
+	
+	// TODO rest of this function
+}
 
 #[wasm_bindgen]
 pub fn init_panic_hook() {
@@ -15,7 +24,7 @@ pub fn init_panic_hook() {
 
 #[wasm_bindgen(start)]
 fn run() -> Result<(), JsValue> {
-	let mut clocks: Vec<ProgressClock> = Vec::new();
+	let clocks: Arc<Mutex<Vec<ProgressClock>>> = Arc::new(Mutex::new(Vec::new()));
 
 	// Get a handle to the document.
 	let window = web_sys::window().expect("no window function");
@@ -32,24 +41,24 @@ fn run() -> Result<(), JsValue> {
 	let clock_area : HtmlDivElement = clock_area.dyn_into::<HtmlDivElement>().map_err(|_| ()).unwrap();
 	
 	// Set up event handlers for "add clock" buttons.
+	let state = Arc::clone(&clocks);
 	let doc = document.clone();
 	let ca = clock_area.clone();
-	let positive_button_handler = Closure::<dyn FnMut(_)>::new(move |e: PointerEvent| {
-		let div = doc.create_element("div").unwrap();
-		div.set_id(Uuid::new_v4().to_string().as_str());
-		div.set_class_name("positive");
-		
-		ca.append_child(&div).unwrap();
+	let positive_button_handler = Closure::<dyn FnMut(_)>::new(move |_e: PointerEvent| {
+		let mut clocks_handle = state.lock().unwrap();
+		let new_clock = ProgressClock::new("", true);
+		add_clock(&doc, &ca, &new_clock);
+		clocks_handle.push(new_clock);
 	});
 	
+	let state = Arc::clone(&clocks);
 	let doc = document.clone();
 	let ca = clock_area.clone();
-	let negative_button_handler = Closure::<dyn FnMut(_)>::new(move |e: PointerEvent| {
-		let div = doc.create_element("div").unwrap();
-		div.set_id(Uuid::new_v4().to_string().as_str());
-		div.set_class_name("negative");
-		
-		ca.append_child(&div).unwrap();
+	let negative_button_handler = Closure::<dyn FnMut(_)>::new(move |_e: PointerEvent| {
+		let mut clocks_handle = state.lock().unwrap();
+		let new_clock = ProgressClock::new("", false);
+		add_clock(&doc, &ca, &new_clock);
+		clocks_handle.push(new_clock);
 	});	
 	
 	positive_button.add_event_listener_with_callback("click", positive_button_handler.as_ref().unchecked_ref())?;
@@ -57,9 +66,6 @@ fn run() -> Result<(), JsValue> {
 	
 	positive_button_handler.forget();
 	negative_button_handler.forget();
-	
-	// The "add good clock" and "add bad clock" buttons just add an empty div to the page with an id that corresponds to a UUIDv4.
-	// We'll need a loop to monitor for new divs, then create a `ProgressClock` to track it and initialise the canvas etc.
 	
 	Ok(())
 }
