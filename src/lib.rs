@@ -30,9 +30,17 @@ fn generate_wedge(degrees: f64) -> Path2d {
 	wedge
 }
 
-fn add_clock(document: &Document, clock_area: &HtmlDivElement, clock_mx: &ProgressClockMutex) {
+fn add_clock(document: &Document, clock_area: &HtmlDivElement, clocks_mx: &Arc<Mutex<Vec<ProgressClockMutex>>>, positive: bool) {
+	// Create an object for the new clock.
+	let mut clocks_handle = clocks_mx.lock().unwrap();
+	let new_clock = Arc::new(Mutex::new(ProgressClock::new("", positive)));
+	
+	let clock_mx = new_clock.clone();
 	let clock = clock_mx.lock().unwrap();
+	
+	clocks_handle.push(new_clock);
 
+	// Add a div for the new clock.
 	let div = document.create_element("div").unwrap();
 	div.set_class_name("clock-container");
 	div.set_id(&clock.get_id());
@@ -53,7 +61,7 @@ fn add_clock(document: &Document, clock_area: &HtmlDivElement, clock_mx: &Progre
 	div.append_child(&title).unwrap();
 	
 	// Add an event handler so that changes to the title update the underlying object.
-	let handler_clock = Arc::clone(clock_mx);
+	let handler_clock = Arc::clone(&clock_mx);
 	let handler_title = title.clone();
 	let handler = Closure::<dyn FnMut()>::new(move || {
 		handler_clock.lock().unwrap().set_name(&handler_title.value());
@@ -98,7 +106,49 @@ fn add_clock(document: &Document, clock_area: &HtmlDivElement, clock_mx: &Progre
 	reduce.set_inner_text("↡");
 	button_div.append_child(&reduce).unwrap();
 	
-	// TODO Add event handlers to connect the buttons to the clock's exported functions.
+	// Event handler for enlarge button.
+	let handler_clock = Arc::clone(&clock_mx);
+	let handler = Closure::<dyn FnMut()>::new(move || {
+		handler_clock.lock().unwrap().enlarge();
+	});
+	
+	enlarge.add_event_listener_with_callback("click", handler.as_ref().unchecked_ref()).unwrap();
+	handler.forget();
+	
+	// Event handler for remove button.
+	let doc = document.clone();
+	let handler_clocks = Arc::clone(&clocks_mx);
+	let handler_clock = Arc::clone(&clock_mx);
+	let handler = Closure::<dyn FnMut()>::new(move || {
+		remove_clock(&doc, &handler_clocks, &handler_clock);
+	});
+	
+	remove.add_event_listener_with_callback("click", handler.as_ref().unchecked_ref()).unwrap();
+	handler.forget();
+	
+	// Event handler for reduce button.
+	let handler_clock = Arc::clone(&clock_mx);
+	let handler = Closure::<dyn FnMut()>::new(move || {
+		handler_clock.lock().unwrap().reduce();
+	});
+	
+	reduce.add_event_listener_with_callback("click", handler.as_ref().unchecked_ref()).unwrap();
+	handler.forget();
+}
+
+fn remove_clock(document: &Document, clocks_mx: &Arc<Mutex<Vec<ProgressClockMutex>>>, clock_mx: &ProgressClockMutex) {
+	let clock = clock_mx.lock().unwrap();
+	let id = clock.get_id();
+	std::mem::drop(clock); // must explicitly drop to avoid recursive mutex
+	
+	let element = document.get_element_by_id(&id).unwrap();
+	element.remove();
+	
+	let mut clocks_handle = clocks_mx.lock().unwrap();
+	clocks_handle.retain(|i| {
+		let current_clock = i.lock().unwrap();
+		!(current_clock.get_id() == id)
+	});
 }
 
 fn draw_clock(document: &Document, clock_mx: &ProgressClockMutex, x: f64, y: f64) {
@@ -184,20 +234,14 @@ fn run() -> Result<(), JsValue> {
 	let doc = document.clone();
 	let ca = clock_area.clone();
 	let positive_button_handler = Closure::<dyn FnMut(_)>::new(move |_e: PointerEvent| {
-		let mut clocks_handle = clocks_mx.lock().unwrap();
-		let new_clock = Arc::new(Mutex::new(ProgressClock::new("", true)));
-		add_clock(&doc, &ca, &new_clock);
-		clocks_handle.push(new_clock);
+		add_clock(&doc, &ca, &clocks_mx, true);
 	});
 	
 	let clocks_mx = Arc::clone(&clocks);
 	let doc = document.clone();
 	let ca = clock_area.clone();
 	let negative_button_handler = Closure::<dyn FnMut(_)>::new(move |_e: PointerEvent| {
-		let mut clocks_handle = clocks_mx.lock().unwrap();
-		let new_clock = Arc::new(Mutex::new(ProgressClock::new("", false)));
-		add_clock(&doc, &ca, &new_clock);
-		clocks_handle.push(new_clock);
+		add_clock(&doc, &ca, &clocks_mx, false);
 	});	
 	
 	positive_button.add_event_listener_with_callback("click", positive_button_handler.as_ref().unchecked_ref())?;
@@ -228,3 +272,4 @@ fn run() -> Result<(), JsValue> {
 }
 
 // TODO replace every unwrap with an expect so we get console errors
+// TODO clocks are ephemeral, but we leak the closures when we create them, which may cause performance issues
