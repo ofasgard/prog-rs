@@ -2,6 +2,10 @@ use std::cmp::min;
 use std::cmp::max;
 use uuid::Uuid;
 
+use serde::Serialize;
+use serde::Deserialize;
+
+#[derive(Serialize, Deserialize, Debug)]
 pub struct ProgressClock {
 	name: String,
 	size: i32,
@@ -20,7 +24,16 @@ impl ProgressClock {
 			id: Uuid::new_v4()
 		}
 	}
+
+	pub fn to_string(&self) -> String {
+		serde_json::to_string(&self).unwrap()
+
+	}
 	
+	pub fn from_string(s : String) -> ProgressClock {
+		serde_json::from_str(&s).unwrap()
+	}
+
 	pub fn get_name(&self) -> String { self.name.to_string() }
 	pub fn get_size(&self) -> i32 { self.size }
 	pub fn get_ticks(&self) -> i32 { self.ticks }
