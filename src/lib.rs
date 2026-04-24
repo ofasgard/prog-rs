@@ -3,17 +3,25 @@ pub mod clock;
 use crate::clock::ProgressClock;
 
 use wasm_bindgen::prelude::*;
-use web_sys::{ Document, HtmlInputElement, HtmlDivElement, PointerEvent };
+use web_sys::{ Document, HtmlInputElement, HtmlDivElement, HtmlButtonElement, HtmlCanvasElement, CanvasRenderingContext2d, PointerEvent };
 use console_error_panic_hook;
 
 use std::sync::Arc;
 use std::sync::Mutex;
+use std::rc::Rc;
+use std::cell::RefCell;
 
+type ProgressClockMutex = Arc<Mutex<ProgressClock>>;
+
+const CLOCK_RADIUS : u32 = 100;
 const POSITIVE_TICK_COLOR : &str = "#E0FFFF";
 const NEGATIVE_TICK_COLOR : &str = "#A31F34";
 
-fn add_clock(document: &Document, clock_area: &HtmlDivElement, clock: &ProgressClock) {
+fn add_clock(document: &Document, clock_area: &HtmlDivElement, clock_mx: &ProgressClockMutex) {
+	let clock = clock_mx.lock().unwrap();
+
 	let div = document.create_element("div").unwrap();
+	div.set_class_name("clock-container");
 	div.set_id(&clock.get_id());
 	clock_area.append_child(&div).unwrap();
 	
@@ -31,7 +39,70 @@ fn add_clock(document: &Document, clock_area: &HtmlDivElement, clock: &ProgressC
 	};
 	div.append_child(&title).unwrap();
 	
-	// TODO rest of this function
+	// Add an event handler so that changes to the title update the underlying object.
+	let handler_clock = Arc::clone(clock_mx);
+	let handler_title = title.clone();
+	let handler = Closure::<dyn FnMut()>::new(move || {
+		handler_clock.lock().unwrap().set_name(&handler_title.value());
+	});
+	
+	title.add_event_listener_with_callback("change", handler.as_ref().unchecked_ref()).unwrap();
+	handler.forget();
+	
+	// Create a canvas to draw the clock on.
+	let canvas = document.create_element("canvas").unwrap();
+	let canvas : HtmlCanvasElement = canvas.dyn_into::<HtmlCanvasElement>().map_err(|_| ()).unwrap();
+	canvas.set_width(CLOCK_RADIUS * 2);
+	canvas.set_height(CLOCK_RADIUS * 2);
+	div.append_child(&canvas).unwrap();
+	
+	// TODO Add event handler for processing when a user clicks on the clock.
+	
+	// Create the buttons to enlarge/reduce/remove the clock.
+	let button_div = document.create_element("div").unwrap();
+	button_div.set_class_name("clock-buttons");
+	div.append_child(&button_div).unwrap();
+	
+	let enlarge = document.create_element("button").unwrap();
+	let enlarge : HtmlButtonElement = enlarge.dyn_into::<HtmlButtonElement>().map_err(|_| ()).unwrap();
+	enlarge.class_list().add_1("button").unwrap();
+	enlarge.class_list().add_1("clock-button").unwrap();
+	enlarge.set_inner_text("↟");
+	button_div.append_child(&enlarge).unwrap();
+	
+	let remove = document.create_element("button").unwrap();
+	let remove : HtmlButtonElement = remove.dyn_into::<HtmlButtonElement>().map_err(|_| ()).unwrap();
+	remove.class_list().add_1("button").unwrap();
+	remove.class_list().add_1("clock-button").unwrap();
+	remove.set_inner_text("🗑");
+	button_div.append_child(&remove).unwrap();
+	
+	let reduce = document.create_element("button").unwrap();
+	let reduce : HtmlButtonElement = reduce.dyn_into::<HtmlButtonElement>().map_err(|_| ()).unwrap();
+	reduce.class_list().add_1("button").unwrap();
+	reduce.class_list().add_1("clock-button").unwrap();
+	reduce.set_inner_text("↡");
+	button_div.append_child(&reduce).unwrap();
+	
+	// TODO Add event handlers to connect the buttons to the clock's exported functions.
+}
+
+fn draw_clock(document: &Document, clock_mx: &ProgressClockMutex) {
+	// Retrieve the div that corresponds to this clock.
+	let clock = clock_mx.lock().unwrap();
+	let id = clock.get_id();
+	
+	let clock_div = document.get_element_by_id(&id).unwrap();
+	let clock_div : HtmlDivElement = clock_div.dyn_into::<HtmlDivElement>().map_err(|_| ()).unwrap();
+	
+	// Retrieve the canvas and initialise a drawing context.
+	let canvas = clock_div.children().item(1).unwrap();
+	let canvas : HtmlCanvasElement = canvas.dyn_into::<HtmlCanvasElement>().map_err(|_| ()).unwrap();
+	
+	let ctx = canvas.get_context("2d").unwrap().unwrap().dyn_into::<CanvasRenderingContext2d>().unwrap();
+	ctx.clear_rect(0.0, 0.0, canvas.width().into(), canvas.height().into());
+	
+	// TODO contents of original JavaScript drawClock()
 }
 
 #[wasm_bindgen]
@@ -41,7 +112,7 @@ pub fn init_panic_hook() {
 
 #[wasm_bindgen(start)]
 fn run() -> Result<(), JsValue> {
-	let clocks: Arc<Mutex<Vec<ProgressClock>>> = Arc::new(Mutex::new(Vec::new()));
+	let clocks: Arc<Mutex<Vec<ProgressClockMutex>>> = Arc::new(Mutex::new(Vec::new()));
 
 	// Get a handle to the document.
 	let window = web_sys::window().expect("no window function");
@@ -58,22 +129,22 @@ fn run() -> Result<(), JsValue> {
 	let clock_area : HtmlDivElement = clock_area.dyn_into::<HtmlDivElement>().map_err(|_| ()).unwrap();
 	
 	// Set up event handlers for "add clock" buttons.
-	let state = Arc::clone(&clocks);
+	let clocks_mx = Arc::clone(&clocks);
 	let doc = document.clone();
 	let ca = clock_area.clone();
 	let positive_button_handler = Closure::<dyn FnMut(_)>::new(move |_e: PointerEvent| {
-		let mut clocks_handle = state.lock().unwrap();
-		let new_clock = ProgressClock::new("", true);
+		let mut clocks_handle = clocks_mx.lock().unwrap();
+		let new_clock = Arc::new(Mutex::new(ProgressClock::new("", true)));
 		add_clock(&doc, &ca, &new_clock);
 		clocks_handle.push(new_clock);
 	});
 	
-	let state = Arc::clone(&clocks);
+	let clocks_mx = Arc::clone(&clocks);
 	let doc = document.clone();
 	let ca = clock_area.clone();
 	let negative_button_handler = Closure::<dyn FnMut(_)>::new(move |_e: PointerEvent| {
-		let mut clocks_handle = state.lock().unwrap();
-		let new_clock = ProgressClock::new("", false);
+		let mut clocks_handle = clocks_mx.lock().unwrap();
+		let new_clock = Arc::new(Mutex::new(ProgressClock::new("", false)));
 		add_clock(&doc, &ca, &new_clock);
 		clocks_handle.push(new_clock);
 	});	
@@ -84,5 +155,23 @@ fn run() -> Result<(), JsValue> {
 	positive_button_handler.forget();
 	negative_button_handler.forget();
 	
+	// Set up the main loop.
+	let render_loop = Rc::new(RefCell::new(None::<Closure<dyn FnMut()>>));
+	
+	let w = window.clone();
+	let rl = render_loop.clone();
+	let clocks_mx = Arc::clone(&clocks);
+	let doc = document.clone();
+	*render_loop.borrow_mut() = Some(Closure::new(move || {
+		// Do some rendering here!
+		let clocks_handle = clocks_mx.lock().unwrap();
+		for clock in &*clocks_handle {
+			draw_clock(&doc, clock);
+		}
+		
+		w.request_animation_frame(rl.borrow().as_ref().unwrap().as_ref().unchecked_ref()).unwrap();
+	}));
+
+	window.request_animation_frame(render_loop.borrow().as_ref().unwrap().as_ref().unchecked_ref()).unwrap();
 	Ok(())
 }

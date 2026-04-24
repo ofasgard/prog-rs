@@ -11,7 +11,7 @@ console_error_panic_hook = "0.1.7"
 getrandom = { version = "0.4.2", features = ["wasm_js"] }
 uuid = { version = "1.23.1", features = ["v4", "fast-rng", "rng-getrandom"] }
 wasm-bindgen = "0.2.118"
-web-sys = { version = "0.3.95", features = ["Window", "Document", "Node", "Element", "HtmlElement", "HtmlInputElement", "HtmlDivElement", "PointerEvent", "CssStyleDeclaration"] }
+web-sys = { version = "0.3.95", features = ["Window", "Document", "Node", "Element", "HtmlElement", "HtmlInputElement", "HtmlDivElement", "PointerEvent", "CssStyleDeclaration", "HtmlCanvasElement", "CanvasRenderingContext2d", "HtmlButtonElement", "DomTokenList", "HtmlCollection"] }
 
 [profile.release]
 # Tell `rustc` to optimize for small code size.
