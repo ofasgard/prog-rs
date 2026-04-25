@@ -3,7 +3,7 @@ pub mod clock;
 use crate::clock::ProgressClock;
 
 use wasm_bindgen::prelude::*;
-use web_sys::{ Document, HtmlInputElement, HtmlDivElement, HtmlButtonElement, HtmlCanvasElement, CanvasRenderingContext2d, PointerEvent, Path2d };
+use web_sys::{ Document, HtmlInputElement, HtmlDivElement, HtmlButtonElement, HtmlCanvasElement, HtmlAnchorElement, CanvasRenderingContext2d, PointerEvent, Path2d };
 use console_error_panic_hook;
 
 use std::f64;
@@ -267,6 +267,23 @@ fn check_tick(document: &Document, clock_mx: &ProgressClockMutex, click_x: f64, 
 	None
 }
 
+fn export_clocks(document: &Document) {
+	let href = document.create_element("a").unwrap();
+	let href : HtmlAnchorElement = href.dyn_into::<HtmlAnchorElement>().map_err(|_| ()).unwrap();
+	
+	// TODO generate JSON
+	
+	let link = format!("data:text/plain;charset=utf-8,{}", "['dummy data']");
+	href.set_href(&link);
+	href.set_download("progress_clocks.json");
+	
+	let body = document.body().expect("document should have a body");
+	body.append_child(&href).unwrap();
+	
+	href.click();
+	href.remove();
+}
+
 #[wasm_bindgen]
 pub fn init_panic_hook() {
     console_error_panic_hook::set_once();
@@ -316,8 +333,9 @@ fn run() -> Result<(), JsValue> {
 	handler.forget();
 	
 	// Set up event handlers for import/export buttons.
+	let doc = document.clone();
 	let handler = Closure::<dyn FnMut(_)>::new(move |_e: PointerEvent| {
-		todo!("Export handler not implemented.");
+		export_clocks(&doc);
 	});	
 	export_button.add_event_listener_with_callback("click", handler.as_ref().unchecked_ref())?;
 	handler.forget();
