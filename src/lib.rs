@@ -3,7 +3,8 @@ pub mod clock;
 use crate::clock::ProgressClock;
 
 use wasm_bindgen::prelude::*;
-use web_sys::{ Document, HtmlInputElement, HtmlDivElement, HtmlButtonElement, HtmlCanvasElement, HtmlAnchorElement, CanvasRenderingContext2d, PointerEvent, Path2d };
+use wasm_bindgen_futures::JsFuture;
+use web_sys::{ Document, HtmlInputElement, HtmlDivElement, HtmlButtonElement, HtmlCanvasElement, HtmlAnchorElement, CanvasRenderingContext2d, File, Event, PointerEvent, Path2d };
 use console_error_panic_hook;
 
 use std::f64;
@@ -32,10 +33,17 @@ fn generate_wedge(degrees: f64) -> Path2d {
 	wedge
 }
 
-fn add_clock(document: &Document, clock_area: &HtmlDivElement, clocks_mx: &Arc<Mutex<Vec<ProgressClockMutex>>>, positive: bool) {
+fn add_clock(clock: Option<ProgressClock>, document: &Document, clocks_mx: &Arc<Mutex<Vec<ProgressClockMutex>>>, positive: bool) {
+	// Retrieve the clock area div.
+	let clock_area = document.get_element_by_id("clock-area").unwrap();
+	let clock_area : HtmlDivElement = clock_area.dyn_into::<HtmlDivElement>().map_err(|_| ()).unwrap();
+
 	// Create an object for the new clock.
 	let mut clocks_handle = clocks_mx.lock().unwrap();
-	let new_clock = Arc::new(Mutex::new(ProgressClock::new("", positive)));
+	let new_clock = match clock {
+		Some(provided) => Arc::new(Mutex::new(provided)),
+		None => Arc::new(Mutex::new(ProgressClock::new("", positive)))
+	};
 	
 	let clock_mx = new_clock.clone();
 	let clock = clock_mx.lock().unwrap();
@@ -293,6 +301,30 @@ fn export_clocks(document: &Document, clocks_mx: &Arc<Mutex<Vec<ProgressClockMut
 	href.remove();
 }
 
+fn import_clocks(document: &Document, clocks_mx: &Arc<Mutex<Vec<ProgressClockMutex>>>) {
+	let import_dialog = document.get_element_by_id("import-input").unwrap();
+	let import_dialog : HtmlInputElement = import_dialog.dyn_into::<HtmlInputElement>().map_err(|_| ()).unwrap();
+
+	let files = import_dialog.files().unwrap();
+	let file : File = files.item(0).unwrap();
+	
+	let doc = document.clone();
+	let cm = Arc::clone(clocks_mx);
+	wasm_bindgen_futures::spawn_local(async move {
+		let text_promise = file.text();
+		let result = JsFuture::from(text_promise).await.unwrap();
+		
+		assert!(result.is_instance_of::<JsValue>());
+		let text : JsValue = result.dyn_into().unwrap();
+		let text_str = text.as_string().unwrap();
+		
+		let clocks : Vec<ProgressClock> = serde_json::from_str::<Vec<ProgressClock>>(&text_str).unwrap();
+		for clock in clocks {
+			add_clock(Some(clock.clone()), &doc, &cm, clock.is_positive());
+		}
+	});
+}
+
 #[wasm_bindgen]
 pub fn init_panic_hook() {
     console_error_panic_hook::set_once();
@@ -318,25 +350,23 @@ fn run() -> Result<(), JsValue> {
 	
 	let import_button = document.get_element_by_id("import").unwrap();
 	let import_button : HtmlInputElement = import_button.dyn_into::<HtmlInputElement>().map_err(|_| ()).unwrap();
-
-	let clock_area = document.get_element_by_id("clock-area").unwrap();
-	let clock_area : HtmlDivElement = clock_area.dyn_into::<HtmlDivElement>().map_err(|_| ()).unwrap();
 	
+	let import_dialog = document.get_element_by_id("import-input").unwrap();
+	let import_dialog : HtmlInputElement = import_dialog.dyn_into::<HtmlInputElement>().map_err(|_| ()).unwrap();
+
 	// Set up event handlers for "add clock" buttons.
 	let clocks_mx = Arc::clone(&clocks);
 	let doc = document.clone();
-	let ca = clock_area.clone();
 	let handler = Closure::<dyn FnMut(_)>::new(move |_e: PointerEvent| {
-		add_clock(&doc, &ca, &clocks_mx, true);
+		add_clock(None, &doc, &clocks_mx, true);
 	});
 	positive_button.add_event_listener_with_callback("click", handler.as_ref().unchecked_ref())?;
 	handler.forget();
 	
 	let clocks_mx = Arc::clone(&clocks);
 	let doc = document.clone();
-	let ca = clock_area.clone();
 	let handler = Closure::<dyn FnMut(_)>::new(move |_e: PointerEvent| {
-		add_clock(&doc, &ca, &clocks_mx, false);
+		add_clock(None, &doc, &clocks_mx, false);
 	});	
 	negative_button.add_event_listener_with_callback("click", handler.as_ref().unchecked_ref())?;
 	handler.forget();
@@ -349,11 +379,20 @@ fn run() -> Result<(), JsValue> {
 	});	
 	export_button.add_event_listener_with_callback("click", handler.as_ref().unchecked_ref())?;
 	handler.forget();
-	
+
+	let id = import_dialog.clone();
 	let handler = Closure::<dyn FnMut(_)>::new(move |_e: PointerEvent| {
-		todo!("Import handler not implemented."); // TODO
+		id.click();
 	});	
 	import_button.add_event_listener_with_callback("click", handler.as_ref().unchecked_ref())?;
+	handler.forget();
+	
+	let clocks_mx = Arc::clone(&clocks);
+	let doc = document.clone();
+	let handler = Closure::<dyn FnMut(_)>::new(move |_e: Event| {
+		import_clocks(&doc, &clocks_mx);
+	});	
+	import_dialog.add_event_listener_with_callback("change", handler.as_ref().unchecked_ref())?;
 	handler.forget();
 	
 	// Set up the main loop.
