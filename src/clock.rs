@@ -2,8 +2,12 @@ use std::cmp::min;
 use std::cmp::max;
 use uuid::Uuid;
 
+use std::sync::Arc;
+use std::sync::Mutex;
 use serde::Serialize;
 use serde::Deserialize;
+
+pub type ProgressClockMutex = Arc<Mutex<ProgressClock>>;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ProgressClock {
