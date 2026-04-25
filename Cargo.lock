@@ -221,7 +221,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "progress-clocks"
+name = "prog-rs"
 version = "0.2.2"
 dependencies = [
  "console_error_panic_hook",
