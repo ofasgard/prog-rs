@@ -5,7 +5,7 @@ use uuid::Uuid;
 use serde::Serialize;
 use serde::Deserialize;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ProgressClock {
 	name: String,
 	size: i32,

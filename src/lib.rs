@@ -11,6 +11,8 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use std::rc::Rc;
 use std::cell::RefCell;
+use std::ops::Deref;
+use serde_json::json;
 
 type ProgressClockMutex = Arc<Mutex<ProgressClock>>;
 
@@ -267,13 +269,20 @@ fn check_tick(document: &Document, clock_mx: &ProgressClockMutex, click_x: f64, 
 	None
 }
 
-fn export_clocks(document: &Document) {
+fn export_clocks(document: &Document, clocks_mx: &Arc<Mutex<Vec<ProgressClockMutex>>>) {
 	let href = document.create_element("a").unwrap();
 	let href : HtmlAnchorElement = href.dyn_into::<HtmlAnchorElement>().map_err(|_| ()).unwrap();
 	
-	// TODO generate JSON
+	let mut clocks : Vec<ProgressClock> = Vec::new();
+	for clock_mx in &*clocks_mx.lock().unwrap() {
+		let clock_handle = clock_mx.lock().unwrap();
+		let clock : ProgressClock = clock_handle.deref().clone();
+		clocks.push(clock);
+	}
 	
-	let link = format!("data:text/plain;charset=utf-8,{}", "['dummy data']");
+	let serialized_clocks = json!(clocks);
+	
+	let link = format!("data:text/plain;charset=utf-8,{}", serialized_clocks);
 	href.set_href(&link);
 	href.set_download("progress_clocks.json");
 	
@@ -333,15 +342,16 @@ fn run() -> Result<(), JsValue> {
 	handler.forget();
 	
 	// Set up event handlers for import/export buttons.
+	let clocks_mx = Arc::clone(&clocks);
 	let doc = document.clone();
 	let handler = Closure::<dyn FnMut(_)>::new(move |_e: PointerEvent| {
-		export_clocks(&doc);
+		export_clocks(&doc, &clocks_mx);
 	});	
 	export_button.add_event_listener_with_callback("click", handler.as_ref().unchecked_ref())?;
 	handler.forget();
 	
 	let handler = Closure::<dyn FnMut(_)>::new(move |_e: PointerEvent| {
-		todo!("Import handler not implemented.");
+		todo!("Import handler not implemented."); // TODO
 	});	
 	import_button.add_event_listener_with_callback("click", handler.as_ref().unchecked_ref())?;
 	handler.forget();
