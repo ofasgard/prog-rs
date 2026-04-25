@@ -286,7 +286,13 @@ fn run() -> Result<(), JsValue> {
 	
 	let negative_button = document.get_element_by_id("add-negative").unwrap();
 	let negative_button : HtmlInputElement = negative_button.dyn_into::<HtmlInputElement>().map_err(|_| ()).unwrap();
+
+	let export_button = document.get_element_by_id("export").unwrap();
+	let export_button : HtmlInputElement = export_button.dyn_into::<HtmlInputElement>().map_err(|_| ()).unwrap();
 	
+	let import_button = document.get_element_by_id("import").unwrap();
+	let import_button : HtmlInputElement = import_button.dyn_into::<HtmlInputElement>().map_err(|_| ()).unwrap();
+
 	let clock_area = document.get_element_by_id("clock-area").unwrap();
 	let clock_area : HtmlDivElement = clock_area.dyn_into::<HtmlDivElement>().map_err(|_| ()).unwrap();
 	
@@ -294,22 +300,33 @@ fn run() -> Result<(), JsValue> {
 	let clocks_mx = Arc::clone(&clocks);
 	let doc = document.clone();
 	let ca = clock_area.clone();
-	let positive_button_handler = Closure::<dyn FnMut(_)>::new(move |_e: PointerEvent| {
+	let handler = Closure::<dyn FnMut(_)>::new(move |_e: PointerEvent| {
 		add_clock(&doc, &ca, &clocks_mx, true);
 	});
+	positive_button.add_event_listener_with_callback("click", handler.as_ref().unchecked_ref())?;
+	handler.forget();
 	
 	let clocks_mx = Arc::clone(&clocks);
 	let doc = document.clone();
 	let ca = clock_area.clone();
-	let negative_button_handler = Closure::<dyn FnMut(_)>::new(move |_e: PointerEvent| {
+	let handler = Closure::<dyn FnMut(_)>::new(move |_e: PointerEvent| {
 		add_clock(&doc, &ca, &clocks_mx, false);
 	});	
+	negative_button.add_event_listener_with_callback("click", handler.as_ref().unchecked_ref())?;
+	handler.forget();
 	
-	positive_button.add_event_listener_with_callback("click", positive_button_handler.as_ref().unchecked_ref())?;
-	negative_button.add_event_listener_with_callback("click", negative_button_handler.as_ref().unchecked_ref())?;
+	// Set up event handlers for import/export buttons.
+	let handler = Closure::<dyn FnMut(_)>::new(move |_e: PointerEvent| {
+		todo!("Export handler not implemented.");
+	});	
+	export_button.add_event_listener_with_callback("click", handler.as_ref().unchecked_ref())?;
+	handler.forget();
 	
-	positive_button_handler.forget();
-	negative_button_handler.forget();
+	let handler = Closure::<dyn FnMut(_)>::new(move |_e: PointerEvent| {
+		todo!("Import handler not implemented.");
+	});	
+	import_button.add_event_listener_with_callback("click", handler.as_ref().unchecked_ref())?;
+	handler.forget();
 	
 	// Set up the main loop.
 	let render_loop = Rc::new(RefCell::new(None::<Closure<dyn FnMut()>>));

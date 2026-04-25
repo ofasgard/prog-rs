@@ -73,7 +73,23 @@ body
 	margin-right: 16px;
 }
 
-.footer {
+.footer-button {
+	font-size: 1.2em;
+	margin-left: 6px;
+	margin-right: 6px;
+}
+
+.footer-left {
+	position: fixed;
+	bottom: 0;
+	left: 0;
+	font-family: 'Kirsty';
+	color: white;
+	padding: 10px;
+	background-color: #222222;
+}
+
+.footer-right {
 	position: fixed;
 	bottom: 0;
 	right: 0;
