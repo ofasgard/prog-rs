@@ -4,7 +4,6 @@ A simple web application for managing *Blades in the Dark* style progress clocks
 
 TODO:
 
-- Don't add duplicate clocks.
 - Add a button to clear all clocks.
 - Replace every `unwrap()` with an `expect()` so we get meaningful errors to the JS console.
 - Clocks are ephemeral, but we leak the closures when we create them, which may cause performance issues?

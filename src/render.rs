@@ -27,7 +27,23 @@ fn generate_wedge(degrees: f64) -> Path2d {
 	wedge
 }
 
+fn clock_exists(id: String, clocks_mx: Arc<Mutex<Vec<ProgressClockMutex>>>) -> bool {
+	let clocks_handle = clocks_mx.lock().unwrap();
+	for clock_mx in &*clocks_handle {
+		let clock = clock_mx.lock().unwrap();
+		if clock.get_id() == id { return true; }
+	}
+	
+	false
+}
+
 pub fn add_clock(clock: Option<ProgressClock>, document: &Document, clocks_mx: &Arc<Mutex<Vec<ProgressClockMutex>>>, positive: bool) {
+	// Check that the clock doesn't already exist.
+	if clock.is_some() {
+		let id = clock.clone().unwrap().get_id();
+		if clock_exists(id, Arc::clone(&clocks_mx)) { return; }
+	}
+
 	// Retrieve the clock area div.
 	let clock_area = document.get_element_by_id("clock-area").unwrap();
 	let clock_area : HtmlDivElement = clock_area.dyn_into::<HtmlDivElement>().map_err(|_| ()).unwrap();
