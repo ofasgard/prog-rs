@@ -18,10 +18,10 @@ const POSITIVE_TICK_COLOR : &str = "#E0FFFF";
 const NEGATIVE_TICK_COLOR : &str = "#A31F34";
 
 fn generate_wedge(degrees: f64) -> Path2d {
-	let wedge = Path2d::new().unwrap();
+	let wedge = Path2d::new().expect("Failed to create Path2d!");
 	let radius : f64 = CLOCK_RADIUS.into();
 	
-	wedge.arc(radius, radius, radius, 0.0, (degrees * f64::consts::PI) / 180.0).unwrap();
+	wedge.arc(radius, radius, radius, 0.0, (degrees * f64::consts::PI) / 180.0).expect("Failed to draw an arc!");
 	wedge.line_to(radius, radius);
 	wedge.close_path();
 	wedge
@@ -30,7 +30,7 @@ fn generate_wedge(degrees: f64) -> Path2d {
 fn clock_exists(id: String, clocks_mx: Arc<Mutex<Vec<ProgressClockMutex>>>) -> bool {
 	let clocks_handle = clocks_mx.lock().expect("Failed to obtain a lock on state mutex!");
 	for clock_mx in &*clocks_handle {
-		let clock = clock_mx.lock().unwrap();
+		let clock = clock_mx.lock().expect("Failed to obtain a lock on a progress clock!");
 		if clock.get_id() == id { return true; }
 	}
 	
@@ -45,8 +45,8 @@ pub fn add_clock(clock: Option<ProgressClock>, document: &Document, clocks_mx: &
 	}
 
 	// Retrieve the clock area div.
-	let clock_area = document.get_element_by_id("clock-area").unwrap();
-	let clock_area : HtmlDivElement = clock_area.dyn_into::<HtmlDivElement>().map_err(|_| ()).unwrap();
+	let clock_area = document.get_element_by_id("clock-area").expect("Could not retrieve clock area div!");
+	let clock_area : HtmlDivElement = clock_area.dyn_into::<HtmlDivElement>().map_err(|_| ()).expect("Clock area div has the wrong element type!");
 
 	// Create an object for the new clock.
 	let mut clocks_handle = clocks_mx.lock().expect("Failed to obtain a lock on state mutex!");
@@ -56,19 +56,19 @@ pub fn add_clock(clock: Option<ProgressClock>, document: &Document, clocks_mx: &
 	};
 	
 	let clock_mx = new_clock.clone();
-	let clock = clock_mx.lock().unwrap();
+	let clock = clock_mx.lock().expect("Failed to obtain a lock on a progress clock!");
 	
 	clocks_handle.push(new_clock);
 
 	// Add a div for the new clock.
-	let div = document.create_element("div").unwrap();
+	let div = document.create_element("div").expect("Failed to create a div element!");
 	div.set_class_name("clock-container");
 	div.set_id(&clock.get_id());
-	clock_area.append_child(&div).unwrap();
+	clock_area.append_child(&div).expect("Failed to add a div element to the clock area div!");
 	
 	// Set the clock's title.
-	let title = document.create_element("input").unwrap();
-	let title : HtmlInputElement = title.dyn_into::<HtmlInputElement>().map_err(|_| ()).unwrap();
+	let title = document.create_element("input").expect("Failed to create an input element!");
+	let title : HtmlInputElement = title.dyn_into::<HtmlInputElement>().map_err(|_| ()).expect("Created input element has the wrong element type!");
 	title.set_class_name("clock-title");
 	title.set_placeholder("Untitled Clock");
 	if clock.get_name() != "" { 
@@ -176,7 +176,7 @@ pub fn add_clock(clock: Option<ProgressClock>, document: &Document, clocks_mx: &
 }
 
 pub fn remove_clock(document: &Document, clocks_mx: &Arc<Mutex<Vec<ProgressClockMutex>>>, clock_mx: &ProgressClockMutex) {
-	let clock = clock_mx.lock().unwrap();
+	let clock = clock_mx.lock().expect("Failed to obtain a lock on a progress clock!");
 	let id = clock.get_id();
 	std::mem::drop(clock); // must explicitly drop to avoid recursive mutex
 	
@@ -192,7 +192,7 @@ pub fn remove_clock(document: &Document, clocks_mx: &Arc<Mutex<Vec<ProgressClock
 
 pub fn draw_clock(document: &Document, clock_mx: &ProgressClockMutex, x: f64, y: f64) {
 	// Retrieve the div that corresponds to this clock.
-	let clock = clock_mx.lock().unwrap();
+	let clock = clock_mx.lock().expect("Failed to obtain a lock on a progress clock!");
 	let id = clock.get_id();
 	let size = clock.get_size();
 	let ticks = clock.get_ticks();
@@ -246,7 +246,7 @@ pub fn draw_clock(document: &Document, clock_mx: &ProgressClockMutex, x: f64, y:
 }
 
 pub fn check_tick(document: &Document, clock_mx: &ProgressClockMutex, click_x: f64, click_y: f64) -> Option<i32> {
-	let clock = clock_mx.lock().unwrap();
+	let clock = clock_mx.lock().expect("Failed to obtain a lock on a progress clock!");
 	let id = clock.get_id();
 	let size = clock.get_size();
 
@@ -295,7 +295,7 @@ pub fn export_clocks(document: &Document, clocks_mx: &Arc<Mutex<Vec<ProgressCloc
 	// Create a non-mutex copy of the current clocks.
 	let mut clocks : Vec<ProgressClock> = Vec::new();
 	for clock_mx in &*clocks_mx.lock().expect("Failed to obtain a lock on state mutex!") {
-		let clock_handle = clock_mx.lock().unwrap();
+		let clock_handle = clock_mx.lock().expect("Failed to obtain a lock on a progress clock!");
 		let clock : ProgressClock = clock_handle.deref().clone();
 		clocks.push(clock);
 	}
