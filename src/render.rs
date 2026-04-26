@@ -28,7 +28,7 @@ fn generate_wedge(degrees: f64) -> Path2d {
 }
 
 fn clock_exists(id: String, clocks_mx: Arc<Mutex<Vec<ProgressClockMutex>>>) -> bool {
-	let clocks_handle = clocks_mx.lock().unwrap();
+	let clocks_handle = clocks_mx.lock().expect("Failed to obtain a lock on state mutex!");
 	for clock_mx in &*clocks_handle {
 		let clock = clock_mx.lock().unwrap();
 		if clock.get_id() == id { return true; }
@@ -49,7 +49,7 @@ pub fn add_clock(clock: Option<ProgressClock>, document: &Document, clocks_mx: &
 	let clock_area : HtmlDivElement = clock_area.dyn_into::<HtmlDivElement>().map_err(|_| ()).unwrap();
 
 	// Create an object for the new clock.
-	let mut clocks_handle = clocks_mx.lock().unwrap();
+	let mut clocks_handle = clocks_mx.lock().expect("Failed to obtain a lock on state mutex!");
 	let new_clock = match clock {
 		Some(provided) => Arc::new(Mutex::new(provided)),
 		None => Arc::new(Mutex::new(ProgressClock::new("", positive)))
@@ -183,7 +183,7 @@ pub fn remove_clock(document: &Document, clocks_mx: &Arc<Mutex<Vec<ProgressClock
 	let element = document.get_element_by_id(&id).unwrap();
 	element.remove();
 	
-	let mut clocks_handle = clocks_mx.lock().unwrap();
+	let mut clocks_handle = clocks_mx.lock().expect("Failed to obtain a lock on state mutex!");
 	clocks_handle.retain(|i| {
 		let current_clock = i.lock().unwrap();
 		!(current_clock.get_id() == id)
@@ -294,7 +294,7 @@ pub fn export_clocks(document: &Document, clocks_mx: &Arc<Mutex<Vec<ProgressCloc
 	
 	// Create a non-mutex copy of the current clocks.
 	let mut clocks : Vec<ProgressClock> = Vec::new();
-	for clock_mx in &*clocks_mx.lock().unwrap() {
+	for clock_mx in &*clocks_mx.lock().expect("Failed to obtain a lock on state mutex!") {
 		let clock_handle = clock_mx.lock().unwrap();
 		let clock : ProgressClock = clock_handle.deref().clone();
 		clocks.push(clock);

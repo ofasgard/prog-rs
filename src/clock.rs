@@ -30,12 +30,12 @@ impl ProgressClock {
 	}
 
 	pub fn to_string(&self) -> String {
-		serde_json::to_string(&self).unwrap()
+		serde_json::to_string(&self).expect("Failed to serialize progress clock to string!")
 
 	}
 	
 	pub fn from_string(s : String) -> ProgressClock {
-		serde_json::from_str(&s).unwrap()
+		serde_json::from_str(&s).expect("Failed to deserialize progress clock from string!")
 	}
 
 	pub fn get_name(&self) -> String { self.name.to_string() }
