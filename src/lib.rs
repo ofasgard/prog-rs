@@ -1,11 +1,13 @@
 pub mod clock;
 pub mod render;
+pub mod storage;
 
 use crate::clock::ProgressClockMutex;
 use crate::render::add_clock;
 use crate::render::draw_clock;
-use crate::render::export_clocks;
-use crate::render::import_clocks;
+use crate::storage::export_clocks;
+use crate::storage::import_clocks;
+use crate::storage::save_clocks;
 
 use wasm_bindgen::prelude::*;
 use web_sys::{ HtmlInputElement, Event, PointerEvent };
@@ -28,6 +30,9 @@ fn run() -> Result<(), JsValue> {
 	// Get a handle to the document.
 	let window = web_sys::window().expect("Could not find window!");
 	let document = window.document().expect("Could not retrieve document from window!");
+	
+	// Get a handle to local storage.
+	let storage = window.local_storage().expect("Could not retrieve local storage!").expect("Could not retrieve local storage!");
 	
 	// Retrieve elements from the page.
 	let positive_button = document.get_element_by_id("add-positive").expect("Could not retrieve positive clock button!");
@@ -93,12 +98,17 @@ fn run() -> Result<(), JsValue> {
 	let rl = render_loop.clone();
 	let clocks_mx = Arc::clone(&clocks);
 	let doc = document.clone();
+	let sto = storage.clone();
 	*render_loop.borrow_mut() = Some(Closure::new(move || {
-		// Do some rendering here!
+		// Draw the clocks.
 		let clocks_handle = clocks_mx.lock().expect("Failed to obtain a lock on state mutex!");
 		for clock in &*clocks_handle {
 			draw_clock(&doc, clock, 0.0, 0.0);
 		}
+		
+		// Save the clocks.
+		std::mem::drop(clocks_handle);
+		save_clocks(&sto, &clocks_mx);
 		
 		w.request_animation_frame(rl.borrow().as_ref().unwrap().as_ref().unchecked_ref()).unwrap();
 	}));
