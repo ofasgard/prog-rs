@@ -8,6 +8,7 @@ use crate::render::draw_clock;
 use crate::storage::export_clocks;
 use crate::storage::import_clocks;
 use crate::storage::save_clocks;
+use crate::storage::load_clocks;
 
 use wasm_bindgen::prelude::*;
 use web_sys::{ HtmlInputElement, Event, PointerEvent };
@@ -49,6 +50,9 @@ fn run() -> Result<(), JsValue> {
 	
 	let import_dialog = document.get_element_by_id("import-input").expect("Could not retrieve import input element!");
 	let import_dialog : HtmlInputElement = import_dialog.dyn_into::<HtmlInputElement>().map_err(|_| ()).expect("Import input element has the wrong element type!");
+
+	// Try to load existing clocks from storage, if available.
+	load_clocks(&document, &storage, &clocks);
 
 	// Set up event handlers for "add clock" buttons.
 	let clocks_mx = Arc::clone(&clocks);

@@ -83,3 +83,19 @@ pub fn save_clocks(storage: &Storage, clocks_mx: &Arc<Mutex<Vec<ProgressClockMut
 	let serialized_clocks = json!(clocks).to_string();
 	storage.set_item("prog_rs_clocks", &serialized_clocks).expect("Failed to write to local storage!");
 }
+
+pub fn load_clocks(document: &Document, storage: &Storage, clocks_mx: &Arc<Mutex<Vec<ProgressClockMutex>>>) {
+	let serialized_clocks_maybe = match storage.get_item("prog_rs_clocks") {
+		Ok(x) => x,
+		Err(_) => return
+	};
+	
+	if serialized_clocks_maybe.is_none() { return; }
+	let serialized_clocks = serialized_clocks_maybe.unwrap();
+	
+	let clocks : Vec<ProgressClock> = serde_json::from_str::<Vec<ProgressClock>>(&serialized_clocks).unwrap();
+	for clock in clocks {
+		// Use the existing function to add them to the app.
+		add_clock(Some(clock.clone()), document, clocks_mx, clock.is_positive());
+	}
+}
